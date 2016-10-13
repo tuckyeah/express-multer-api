@@ -2,6 +2,8 @@
 
 const fs = require('fs');
 const fileType = require('file-type');
+// this is how amazon refers to it, so that's why it's all caps
+const AWS = require('aws-sdk');
 
 const filename = process.argv[2] || '';
 
@@ -37,6 +39,13 @@ const parseFile = (fileBuffer) => {
   file.data = fileBuffer;
   return file;
 };
+
+const s3 = new AWS.S3({
+  credentials: {
+    accessKeyId:,
+    secretAccessKey,
+  }
+});
 
 const upload = (file) => {
   const options = {
