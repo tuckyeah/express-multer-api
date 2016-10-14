@@ -8,6 +8,8 @@ const multer = require('app/middleware').multer;
 const models = require('app/models');
 const Upload = models.upload;
 
+const upload = require('lib/s3-upload').upload;
+
 
 // const authenticate = require('./concerns/authenticate');
 
@@ -24,20 +26,19 @@ const show = (req, res, next) => {
 };
 
 const create = (req, res, next) => {
-  // don't need since we disabled authentication
-  // let upload = Object.assign(req.body.upload, {
-  //   _owner: req.currentUser._id,
-  // });
-  let upload = {
-    comment: req.body.upload.comment,
-    // this comes from multer
-    file: req.file
-  };
-
-  res.json({ upload });
-  // Upload.create(upload)
-  //   .then(upload => res.json({ upload }))
-  //   .catch(err => next(err));
+  upload(req.file.buffer) // use a stream instead of req.file
+  .then((response)=> {
+    return {
+      location: response.Location, // from S3
+      comment: req.body.upload.comment // from our Client
+    };
+  })
+  .then((upload) => {
+    return Upload.create(upload); // send upload to mongo through mongoose
+  })
+  .then(upload => res.json({ upload }))
+  .catch(error => next(error)) // send errors down the chain (since we're in express)
+  ;
 };
 
 // what does it mean to update an upload? We'd likely only be
@@ -77,7 +78,9 @@ const destroy = (req, res, next) => {
 module.exports = controller({
   index,
   show,
-  create
+  create,
+  // destroy,
+  // update,
 }, { before: [
   { method: multer.single('upload[file]'), only: ['create']}
 ], });
