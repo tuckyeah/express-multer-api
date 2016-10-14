@@ -1,4 +1,11 @@
 'use strict';
+// this has to come before everything else!
+require('dotenv').config();
+// this is the same as doing:
+//    const throwaway = require('dotenv');
+//    throwaway.config();
+// but we don't need to do this because we don't need this variable, we just
+// need to execute config
 
 const fs = require('fs');
 const fileType = require('file-type');
@@ -12,7 +19,7 @@ const readFile = (filename) => {
   return new Promise((resolve, reject) => {
     fs.readFile(filename, (error, data) => {
       if (error) {
-        // reject causes the promise to 'fulfilled' so it will still exit the function
+        // reject causes the promise to be 'fulfilled' so it will still exit the function
         reject(error);
       }
       resolve(data);
@@ -23,7 +30,7 @@ const readFile = (filename) => {
 // return a default object in the case that fileType is given an unsupported
 // file type to read.
 const mimeType = (data) => {
-  // this runs fileType(data) and add it to the object literal
+  // this runs fileType(data) and adds it to the object literal
   // we set a default file type here, the most basic type of all files (binary)
   // it will be overwritten with the fileType data if the file actually has data (isn't null)
   return Object.assign({
@@ -40,10 +47,11 @@ const parseFile = (fileBuffer) => {
   return file;
 };
 
+// this is an instance of the S3 manager that will be authenticated
 const s3 = new AWS.S3({
   credentials: {
-    accessKeyId:,
-    secretAccessKey,
+    accessKeyId: process.env.AWS_ACCESS_KEY,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
   }
 });
 
@@ -60,16 +68,20 @@ const upload = (file) => {
     // pick a filename for S3 to use for the upload
     Key: `test/test.${file.ext}`
   };
-  // don't actually upload yet, just pass the data down the Promise chain
-  return Promise.resolve(options);
+
+  return new Promise((resolve, reject) => {
+    s3.upload(options, (error, data) => {
+      if (error) {
+        reject(error);
+      }
+
+      resolve(data);
+    });
+  });
 };
 
-const logMessage = (upload) => {
-  // get rid of the stream (for now) so we can log the rest of the options
-  // in the terminal w/o seeing the stream
-  delete upload.Body;
-  // turn POJO into a stream so we can see it in the console
-  console.log(`The upload options are: ${JSON.stringify(upload)}`);
+const logMessage = (response) => {
+  console.log(`the response from AWS was ${JSON.stringify(response)}`);
 };
 
 // now we have to call our function
